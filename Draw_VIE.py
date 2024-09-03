@@ -7,7 +7,7 @@ import time
 from PIL import Image, ImageDraw, ImageFont
 
 #CÁC THÔNG SỐ CƠ BẢN
-
+#global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, frame_count, target, target_pos, target_id, count, score, combo
 # Khởi tạo thông số cam
 cap = cv2.VideoCapture(0)
 WIDTH = 800
@@ -59,14 +59,37 @@ for i in os.listdir(folder):
     else:
         emo.append((image, None, None))
 
-#Khởi tạo random các thử thách hình vẽ trước để tránh lag
-GAME_SIZE=40
-emo_id=np.random.choice(len(classes),GAME_SIZE)
-emo_list=[classes[emo] for emo in emo_id]
-emo_pos = [len(emo)*12 for emo in emo_list]
 
 #CÁC HÀM CẦN THIẾT
-
+#Khởi tạo các thông số trước để tránh lag
+def init_game():
+    global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
+    GAME_SIZE=40
+    emo_id=np.random.choice(len(classes),GAME_SIZE)
+    emo_list=[classes[emo] for emo in emo_id]
+    emo_pos = [len(emo)*12 for emo in emo_list]
+    eraser, pen = tools[0], tools[1]
+    xp, yp = 0, 0 # tọa độ ngón tay trước đó để vẽ thành các nét line siêu ngắn (tăng độ mượt)
+    is_saved = False #flag để tránh check tay mở liên tục
+    is_draw = False #flag xác nhận người chơi đã vẽ j đó trc khi nộp
+    is_spam = True 
+    is_play = False  #flag xác nhận bắt đầu trò chơi
+    col = (0, 255, 255)  # Default color (yellow)
+    brush_size=25 #độ lớn cọ vẽ ban đầu
+    canvas = np.zeros((HEIGHT, WIDTH, 3), np.uint8) #ảnh sẽ được vẽ lên đây
+    start_point = (CENTER[0]-BOX_RANGE, CENTER[1]-BOX_RANGE)
+    end_point = (CENTER[0]+BOX_RANGE, CENTER[1]+BOX_RANGE)    
+    result_icon = None #hình vẽ dự đoán được mỗi lần nộp
+    display_time = 0 #flag để cố định thời gian icon hiện lên
+    total_time = 60 #tổng thời gian chơi
+    start_time = 0 #thời gian bắt đầu chơi
+    frame_count = 0
+    target='' #hình vẽ mục tiêu
+    target_pos=0
+    target_id=0
+    count=0
+    score=int(0)
+    combo=int(0)
 #xử lí tập class bên trên để cv2 có thể đẩy dc chữ unicode lên màn hình
 font_path = "arial.ttf"
 font_size = 45
@@ -137,33 +160,20 @@ def overlay_icon(frame, icon_info, pos=(CENTER[0]-EMO_SIZE//2, CENTER[1]-EMO_SIZ
         dst = cv2.add(roi_bg, icon_fg)
     else:
         dst = cv2.addWeighted(roi, 1, rgb_img, 0.7, 0)
-
     frame[pos[1]:pos[1] + icon_h, pos[0]:pos[0] + icon_w] = dst
-def update_score(score, combo):
+    
+def update_score(score,combo):
     score+=100*combo
     return score
+def update(frame,start_time,total_time,score,combo):
+    cv2.putText(frame, f"Score: {score}", (WIDTH-225, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(frame, f"x{combo} Combo", (WIDTH-225, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
+    cv2.circle(frame, (50, 40), 30, (0,0, 255), 5)
+    cv2.putText(frame, f"{int(total_time - (time.time() - start_time))}", (30, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 255), 3)
+    
 def main():
-    #khởi tạo các thông số phát sinh trong game
-    eraser, pen = tools[0], tools[1]
-    xp, yp = 0, 0 # tọa độ ngón tay trước đó để vẽ thành các nét line siêu ngắn (tăng độ mượt)
-    is_saved = False #flag để tránh check tay mở liên tục
-    is_draw = False #flag xác nhận người chơi đã vẽ j đó trc khi nộp
-    is_spam = True 
-    is_play = 1 #flag xác nhận bắt đầu trò chơi
-    col = (0, 255, 255)  # Default color (yellow)
-    brush_size=25 #độ lớn cọ vẽ ban đầu
-    canvas = np.zeros((HEIGHT, WIDTH, 3), np.uint8) #ảnh sẽ được vẽ lên đây
-    start_point = (CENTER[0]-BOX_RANGE, CENTER[1]-BOX_RANGE)
-    end_point = (CENTER[0]+BOX_RANGE, CENTER[1]+BOX_RANGE)    
-    result_icon = None #hình vẽ dự đoán được mỗi lần nộp
-    display_time = 0 #flag để cố định thời gian icon hiện lên
-    frame_count = 0
-    target='' #hình vẽ mục tiêu
-    target_pos=0
-    target_id=0
-    count=-1
-    score=0
-    combo=0
+    global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
+    init_game()
     while True:
         success, frame = cap.read()
         if not success:
@@ -175,12 +185,7 @@ def main():
         cv2.rectangle(frame, start_point, end_point, color=(0, 0, 0), thickness=5)
         cv2.rectangle(frame,(LIMIT+OFFSET,HEIGHT//2-OFFSET*3-IMG_SIZE),(LIMIT+OFFSET+IMG_SIZE,HEIGHT//2-OFFSET*3),color=(0,0,0),thickness=5)
         cv2.rectangle(frame,(LIMIT+OFFSET,HEIGHT//2+OFFSET*3),(LIMIT+OFFSET+IMG_SIZE,HEIGHT//2+OFFSET*3+IMG_SIZE),color=(0,0,0),thickness=5)
-        if is_play < 1:
-            cv2.putText(frame, f"Score: {score}", (WIDTH-225, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)
-            cv2.putText(frame, f"x{combo} Combo", (WIDTH-225, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)        
-        #Bắt đầu game
         if is_spam:
-            count+=1
             if count < len(emo_list): 
                 target = emo_list[count]
                 target_pos = emo_pos[count]
@@ -190,7 +195,26 @@ def main():
             else:
                 print("Reached the end of emo_list.")
                 is_spam = False
+            count+=1
+            
         frame = putTextUnicode(frame, target, (CENTER[0]-target_pos,(CENTER[1]-BOX_RANGE)//5), font_path=font_path, font_size=font_size, color=(0, 0, 255))
+        
+        if is_play:
+            start_time=time.time()
+            combo=0
+            score=0
+            is_play=False
+        if start_time != 0: 
+            current_time=int(time.time() - start_time)
+            if current_time < total_time:
+                update(frame,start_time,total_time,score,combo)
+            elif current_time < total_time+10:
+                cv2.putText(frame, f"Score: {score}", (WIDTH//2-150, HEIGHT//2-50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)
+                cv2.putText(frame, f"Combo: {combo}", (WIDTH//2-150, HEIGHT//2+50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)      
+            else: 
+                init_game()
+        #Bắt đầu game
+        
         # Chỉ xử lý các frame chẵn
         if frame_count % 2 == 0:  
             #Xác định vị trí tay         
@@ -218,16 +242,14 @@ def main():
                     if target_id in class_label:
                         result_icon=emo[target_id]
                         is_spam=True
-                        if is_play < 1:combo+=1
+                        combo+=1
                     else: 
                         result_icon = emo[class_label[0]]
                         combo=0
                     score=update_score(score,combo)
                 # tiêu chí thay đổi công cụ
                 elif lanmark[8][2] < lanmark[6][2] and lanmark[12][2] < lanmark[10][2]:
-                    is_saved = False
                     xp, yp = 0, 0
-
                     if x1 > LIMIT:
                         if HEIGHT / 2 - OFFSET*3 > y1 > HEIGHT / 2 - (OFFSET*3 + IMG_SIZE):
                             col = (0, 0, 0)  # Eraser
@@ -240,6 +262,7 @@ def main():
                     cv2.rectangle(frame, (x1, y1), (x2, y2), col, cv2.FILLED)
                 #tiêu chí vẽ
                 elif lanmark[8][2] < lanmark[6][2]:
+                    is_saved = False
                     is_draw=True
                     if xp == 0 and yp == 0:
                         xp, yp = x1, y1
@@ -266,16 +289,17 @@ def main():
         frame = cv2.bitwise_or(frame, canvas)
 
         # Hiện icon trong vòng 2 giây
-        if result_icon is not None and time.time() - display_time < 2:
+        if result_icon is not None and time.time() - display_time < 1:
             overlay_icon(frame, result_icon)
         
         cv2.imshow('cam', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'): #Hủy game
             break
-        if cv2.waitKey(1) & 0xFF == ord('p'): #Bắt đầu game/chuyển mục tiêu vẽ
+        if cv2.waitKey(1) & 0xFF == ord('n'): #Chuyển mục tiêu vẽ
             is_spam=True
-            is_play*=-1
+        if cv2.waitKey(1) & 0xFF == ord('p'): #Bắt đầu game
+            is_play=True
 
     cap.release()
     cv2.destroyAllWindows()
