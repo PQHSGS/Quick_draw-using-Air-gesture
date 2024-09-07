@@ -14,7 +14,7 @@ WIDTH = 800
 HEIGHT = 600
 OFFSET = 20
 LIMIT = 600
-CENTER=(320,300) #Tọa độ ô vẽ
+CENTER=(340,300) #Tọa độ ô vẽ
 BOX_RANGE=225 #Chiều rộng ô
 cap.set(3, WIDTH) 
 cap.set(4, HEIGHT)
