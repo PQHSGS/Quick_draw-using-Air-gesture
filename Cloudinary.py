@@ -7,6 +7,7 @@ import time
 import cloudinary.uploader
 import cloudinary.api
 from PIL import Image, ImageDraw, ImageFont
+import io
 cloudinary.config( 
     cloud_name = "dwsk1vwlc", 
     api_key = "234436162877572", 
@@ -14,7 +15,7 @@ cloudinary.config(
     secure=True
 )
 #CÁC THÔNG SỐ CƠ BẢN
-#global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, frame_count, target, target_pos, target_id, count, score, combo
+
 # Khởi tạo thông số cam
 cap = cv2.VideoCapture(0)
 WIDTH = 800
@@ -42,9 +43,9 @@ folder = 'tools'
 tools = [cv2.resize(cv2.imread(f'{folder}/{i}'), (IMG_SIZE, IMG_SIZE)) for i in os.listdir(folder)]
 logo = cv2.resize(cv2.imread('vme.jpg'),(70,70))
 # Các đồ vật có thể nhận diện được
-'''classes = np.array(['apple', 'banana', 'cake','cruise ship','fish','face',
+classes_eng = np.array(['apple', 'banana', 'cake','cruise ship','fish','face',
        'flower', 'lantern', 'lion', 'moon', 'pear', 'pineapple', 'rabbit',
-       'star', 'strawberry', 'tree', 'watermelon'])'''
+       'star', 'strawberry', 'tree', 'watermelon'])
 # Tên bằng tiếng việt
 classes=np.array(['Quả táo', 'Quả chuối', 'Bánh trung thu','Con tàu','Bánh cá','Mặt nạ',
        'Bông hoa', 'Đèn lồng', 'Con lân', 'Ông trăng', 'Quả lê', 'Quả dứa', 'Thỏ ngọc',
@@ -69,17 +70,15 @@ for i in os.listdir(folder):
 
 #CÁC HÀM CẦN THIẾT
 #Khởi tạo các thông số trước để tránh lag
-def upload_image_to_cloudinary(image, image_name="predicted_image"):
-    # Convert the image (box) to bytes in memory
-    _, img_encoded = cv2.imencode('.png', image)
-    img_bytes = img_encoded.tobytes()
+# def upload_image_to_cloudinary(image, image_name="predicted_image"):
+#     """Uploads the image to Cloudinary."""
+#     _, img_encoded = cv2.imencode('.png', image)  # Save as PNG for transparency
+#     img_bytes = img_encoded.tobytes()
 
-    # Upload the image bytes to Cloudinary
-    response = cloudinary.uploader.upload(img_bytes, public_id=image_name, resource_type="image")
-    
-    # Get the uploaded image URL
-    image_url = response['secure_url']
-    return image_url
+#     response = cloudinary.uploader.upload(img_bytes, public_id=image_name, resource_type="image", format="png")
+#     image_url = response['secure_url']
+#     return image_url
+
 def init_game():
     global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
     GAME_SIZE=40
@@ -191,6 +190,7 @@ def update(frame,start_time,total_time,score,combo):
     
 def main():
     global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
+    current_time=0
     init_game()
     while True:
         success, frame = cap.read()
@@ -264,8 +264,9 @@ def main():
                     else: 
                         result_icon = emo[class_label[0]]
                         combo=0
-                    upload_url=upload_image_to_cloudinary(box, image_name=f'{classes[target_id]}_{time.time()}')
-                    print(f"Uploaded: url={upload_url}")
+                    path=f"icon_v1\{classes_eng[class_label[0]]}.png"
+                    url = cloudinary.uploader.upload(path, public_id=f"{classes[class_label[0]]}_{current_time}", resource_type="image")
+                    print(f"Uploaded: {url['secure_url']}")
                     score=update_score(score,combo)
                 # tiêu chí thay đổi công cụ
                 elif lanmark[8][2] < lanmark[6][2] and lanmark[12][2] < lanmark[10][2]:
@@ -309,14 +310,15 @@ def main():
         frame = cv2.bitwise_or(frame, canvas)
 
         # Hiện icon trong vòng 2 giây
-        if result_icon is not None and time.time() - display_time < 1:
+        if result_icon is not None and time.time() - display_time < 2:
             overlay_icon(frame, result_icon)
+            #frame[HEIGHT//2-EMO_SIZE//2:HEIGHT//2+EMO_SIZE//2,CENTER[0]-EMO_SIZE//2:CENTER[0]+EMO_SIZE//2]=result_icon
         
         cv2.imshow('cam', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'): #Hủy game
             break
-        if cv2.waitKey(1) & 0xFF == ord('n'): #Bắt đầu game/chuyển mục tiêu vẽ
+        if cv2.waitKey(1) & 0xFF == ord('n'): #Chuyển mục tiêu vẽ
             is_spam=True
         if cv2.waitKey(1) & 0xFF == ord('p'): #Bắt đầu game
             is_play=True
