@@ -4,10 +4,11 @@ import os
 import numpy as np
 from keras.models import load_model
 import time
+from datetime import datetime
 import cloudinary.uploader
 import cloudinary.api
 from PIL import Image, ImageDraw, ImageFont
-import io
+
 cloudinary.config( 
     cloud_name = "dwsk1vwlc", 
     api_key = "234436162877572", 
@@ -43,13 +44,14 @@ folder = 'tools'
 tools = [cv2.resize(cv2.imread(f'{folder}/{i}'), (IMG_SIZE, IMG_SIZE)) for i in os.listdir(folder)]
 logo = cv2.resize(cv2.imread('vme.jpg'),(70,70))
 # Các đồ vật có thể nhận diện được
-classes_eng = np.array(['apple', 'banana', 'cake','cruise ship','fish','face',
+classes_eng=np.array(['apple', 'banana', 'cake','cruise_ship','fish','face',
        'flower', 'lantern', 'lion', 'moon', 'pear', 'pineapple', 'rabbit',
        'star', 'strawberry', 'tree', 'watermelon'])
 # Tên bằng tiếng việt
-classes=np.array(['Quả táo', 'Quả chuối', 'Bánh trung thu','Con tàu','Bánh cá','Mặt nạ',
+classes=np.array(['Quả táo', 'Quả chuối', 'Bánh trung thu','Con tàu','Mặt nạ', 'Bánh cá',
        'Bông hoa', 'Đèn lồng', 'Con lân', 'Ông trăng', 'Quả lê', 'Quả dứa', 'Thỏ ngọc',
        'Đèn ông sao', 'Quả dâu tây', 'Cây thần', 'Quả dưa hấu'])
+classes_len = np.array([len(i)*12 for i in classes])
 # Load các hình đồ vật và xử lí để chèn lên màn hình
 EMO_SIZE = 300
 folder = "icon_v1"
@@ -80,17 +82,13 @@ for i in os.listdir(folder):
 #     return image_url
 
 def init_game():
-    global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
-    GAME_SIZE=40
-    emo_id=np.random.choice(len(classes),GAME_SIZE)
-    emo_list=[classes[emo] for emo in emo_id]
-    emo_pos = [len(emo)*12 for emo in emo_list]
+    global name, word_len, eraser, pen, xp, yp, is_saved, is_draw, col, brush_size, canvas, start_point, end_point, result_icon, display_time, frame_count
     eraser, pen = tools[0], tools[1]
+    name = ""
+    word_len = len(name)*12
     xp, yp = 0, 0 # tọa độ ngón tay trước đó để vẽ thành các nét line siêu ngắn (tăng độ mượt)
     is_saved = False #flag để tránh check tay mở liên tục
     is_draw = False #flag xác nhận người chơi đã vẽ j đó trc khi nộp
-    is_spam = True 
-    is_play = False  #flag xác nhận bắt đầu trò chơi
     col = (0, 255, 255)  # Default color (yellow)
     brush_size=25 #độ lớn cọ vẽ ban đầu
     canvas = np.zeros((HEIGHT, WIDTH, 3), np.uint8) #ảnh sẽ được vẽ lên đây
@@ -98,15 +96,7 @@ def init_game():
     end_point = (CENTER[0]+BOX_RANGE, CENTER[1]+BOX_RANGE)    
     result_icon = None #hình vẽ dự đoán được mỗi lần nộp
     display_time = 0 #flag để cố định thời gian icon hiện lên
-    total_time = 60 #tổng thời gian chơi
-    start_time = 0 #thời gian bắt đầu chơi
     frame_count = 0
-    target='' #hình vẽ mục tiêu
-    target_pos=0
-    target_id=0
-    count=0
-    score=int(0)
-    combo=int(0)
 #xử lí tập class bên trên để cv2 có thể đẩy dc chữ unicode lên màn hình
 font_path = "arial.ttf"
 font_size = 45
@@ -124,20 +114,16 @@ def putTextUnicode(img, text, position, font_path='arial.ttf', font_size=30, col
     """
     # Convert OpenCV image (numpy array) to PIL image
     img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-
     # Create a drawing context
     draw = ImageDraw.Draw(img_pil)
-
     # Load the desired font
     font = ImageFont.truetype(font_path, font_size)
-
     # Draw the text
     draw.text(position, text, font=font, fill=(color[2], color[1], color[0]))  # Convert BGR to RGB
-
     # Convert back to OpenCV image
     img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-    
     return img
+
 # Tiền xử lý ảnh vẽ
 def keras_process_image(canvas):
     canvas_gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
@@ -149,9 +135,11 @@ def keras_process_image(canvas):
 # Dự đoán hình vẽ
 def keras_predict(model, image):
     processed = keras_process_image(image)
-    pred_probab = model.predict(processed, verbose=0)[0]
-    top_indices = np.argsort(pred_probab)[-3:][::-1]
-    return top_indices
+    # Get predicted class
+    pred = np.argmax(model.predict(processed, verbose=0)[0])
+    # Get probability of predicted class
+    prob = np.max(model.predict(processed, verbose=0)[0])
+    return pred, prob
 
 # Kiểm tra dấu hiệu nộp ảnh - mở tay
 def check_fingers_open(lanmark):
@@ -179,18 +167,8 @@ def overlay_icon(frame, icon_info, pos=(CENTER[0]-EMO_SIZE//2, CENTER[1]-EMO_SIZ
         dst = cv2.addWeighted(roi, 1, rgb_img, 0.7, 0)
     frame[pos[1]:pos[1] + icon_h, pos[0]:pos[0] + icon_w] = dst
     
-def update_score(score,combo):
-    score+=100*combo
-    return score
-def update(frame,start_time,total_time,score,combo):
-    cv2.putText(frame, f"Score: {score}", (WIDTH-225, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
-    cv2.putText(frame, f"x{combo} Combo", (WIDTH-225, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
-    cv2.circle(frame, (50, 40), 30, (0,0, 255), 5)
-    cv2.putText(frame, f"{int(total_time - (time.time() - start_time))}", (30, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 255), 3)
-    
 def main():
-    global emo_id, emo_list, emo_pos, eraser, pen, xp, yp, is_saved, is_draw, is_spam, is_play, col, brush_size, canvas, start_point, end_point, result_icon, display_time, total_time, start_time, frame_count, target, target_pos, target_id, count, score, combo
-    current_time=0
+    global name, word_len, eraser, pen, xp, yp, is_saved, is_draw, col, brush_size, canvas, start_point, end_point, result_icon, display_time, frame_count
     init_game()
     while True:
         success, frame = cap.read()
@@ -203,36 +181,8 @@ def main():
         cv2.rectangle(frame, start_point, end_point, color=(0, 0, 0), thickness=5)
         cv2.rectangle(frame,(LIMIT+OFFSET,HEIGHT//2-OFFSET*3-IMG_SIZE),(LIMIT+OFFSET+IMG_SIZE,HEIGHT//2-OFFSET*3),color=(0,0,0),thickness=5)
         cv2.rectangle(frame,(LIMIT+OFFSET,HEIGHT//2+OFFSET*3),(LIMIT+OFFSET+IMG_SIZE,HEIGHT//2+OFFSET*3+IMG_SIZE),color=(0,0,0),thickness=5)
-        if is_spam:
-            if count < len(emo_list): 
-                target = emo_list[count]
-                target_pos = emo_pos[count]
-                target_id=emo_id[count]
-                is_spam=False
-                next=False
-            else:
-                print("Reached the end of emo_list.")
-                is_spam = False
-            count+=1
-            
-        frame = putTextUnicode(frame, target, (CENTER[0]-target_pos,(CENTER[1]-BOX_RANGE)//5), font_path=font_path, font_size=font_size, color=(0, 0, 255))
         
-        if is_play:
-            start_time=time.time()
-            combo=0
-            score=0
-            is_play=False
-        if start_time != 0: 
-            current_time=int(time.time() - start_time)
-            if current_time < total_time:
-                update(frame,start_time,total_time,score,combo)
-            elif current_time < total_time+10:
-                cv2.putText(frame, f"Score: {score}", (WIDTH//2-150, HEIGHT//2-50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)
-                cv2.putText(frame, f"Combo: {combo}", (WIDTH//2-150, HEIGHT//2+50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 3)      
-            else: 
-                init_game()
         #Bắt đầu game
-        
         # Chỉ xử lý các frame chẵn
         if frame_count % 2 == 0:  
             #Xác định vị trí tay         
@@ -252,22 +202,22 @@ def main():
                 #tiêu chí nộp bài
                 if check_fingers_open(lanmark) and is_draw and not is_saved:
                     box = canvas[CENTER[1]-BOX_RANGE:CENTER[1]+BOX_RANGE, CENTER[0]-BOX_RANGE:CENTER[0]+BOX_RANGE]
-                    class_label = keras_predict(model, box)
+                    class_label, prob = keras_predict(model, box)
                     display_time = time.time()
                     canvas = np.zeros((HEIGHT, WIDTH, 3), np.uint8)
                     is_saved = True
                     is_draw=False
-                    if target_id in class_label:
-                        result_icon=emo[target_id]
-                        is_spam=True
-                        combo+=1
-                    else: 
-                        result_icon = emo[class_label[0]]
-                        combo=0
-                    path=f"icon_v1\{classes_eng[class_label[0]]}.png"
-                    url = cloudinary.uploader.upload(path, public_id=f"{classes[class_label[0]]}_{current_time}", resource_type="image")
-                    print(f"Uploaded: {url['secure_url']}")
-                    score=update_score(score,combo)
+                    print(f"Predicted: {classes[class_label]} with prob: {prob}")
+                    if prob <0.4:
+                        result_icon = None
+                        name="Không nhận diện được"
+                        word_len = len(name)*12
+                    else:
+                        result_icon = emo[class_label]
+                        name=classes[class_label]  
+                        word_len = classes_len[class_label]  
+                        path=f"icon_v1\{classes_eng[class_label]}.png"
+                        cloudinary.uploader.upload(path, public_id=f"{datetime.now().strftime('%w_%H_%M_%S')}_{name}")
                 # tiêu chí thay đổi công cụ
                 elif lanmark[8][2] < lanmark[6][2] and lanmark[12][2] < lanmark[10][2]:
                     xp, yp = 0, 0
@@ -312,16 +262,11 @@ def main():
         # Hiện icon trong vòng 2 giây
         if result_icon is not None and time.time() - display_time < 2:
             overlay_icon(frame, result_icon)
-            #frame[HEIGHT//2-EMO_SIZE//2:HEIGHT//2+EMO_SIZE//2,CENTER[0]-EMO_SIZE//2:CENTER[0]+EMO_SIZE//2]=result_icon
+        frame = putTextUnicode(frame, name, (CENTER[0]-word_len,(CENTER[1]-BOX_RANGE)//5), font_path=font_path, font_size=font_size, color=(0, 0, 255))
         
         cv2.imshow('cam', frame)
-
         if cv2.waitKey(1) & 0xFF == ord('q'): #Hủy game
             break
-        if cv2.waitKey(1) & 0xFF == ord('n'): #Chuyển mục tiêu vẽ
-            is_spam=True
-        if cv2.waitKey(1) & 0xFF == ord('p'): #Bắt đầu game
-            is_play=True
 
     cap.release()
     cv2.destroyAllWindows()
