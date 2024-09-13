@@ -164,7 +164,7 @@ def overlay_icon(frame, icon_info, pos=(CENTER[0]-EMO_SIZE//2, CENTER[1]-EMO_SIZ
         icon_fg = cv2.bitwise_and(rgb_img, rgb_img, mask=alpha_mask[:, :, 0])
         dst = cv2.add(roi_bg, icon_fg)
     else:
-        dst = cv2.addWeighted(roi, 1, rgb_img, 0.7, 0)
+        dst = cv2.addWeighted(roi, 0.1, rgb_img, 0.9, 0)
     frame[pos[1]:pos[1] + icon_h, pos[0]:pos[0] + icon_w] = dst
     
 def main():
@@ -260,7 +260,7 @@ def main():
         frame = cv2.bitwise_or(frame, canvas)
 
         # Hiện icon trong vòng 2 giây
-        if result_icon is not None and time.time() - display_time < 2:
+        if result_icon is not None and time.time() - display_time < 4:
             overlay_icon(frame, result_icon)
         frame = putTextUnicode(frame, name, (CENTER[0]-word_len,(CENTER[1]-BOX_RANGE)//5), font_path=font_path, font_size=font_size, color=(0, 0, 255))
         
