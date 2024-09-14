@@ -101,7 +101,7 @@ def init_game():
     is_draw = False
     col = (0, 255, 255)
     brush_size = 10
-    canvas = np.zeros((480, 848, 3), np.uint8)
+    canvas = np.zeros((frame.shape[0], frame.shape[1], 3), np.uint8)
     start_point = (CENTER[0] - BOX_RANGE, CENTER[1] - BOX_RANGE)
     end_point = (CENTER[0] + BOX_RANGE, CENTER[1] + BOX_RANGE)    
     result_icon = None
@@ -158,10 +158,9 @@ def overlay_icon(frame, icon_info, pos=(CENTER[0] - EMO_SIZE//2, CENTER[1] - EMO
 
 async def main_loop():
     global name, word_len, eraser, pen, xp, yp, is_saved, is_draw, col, brush_size, canvas, start_point, end_point, result_icon, display_time, frame_count
-    NUM_PER_CLASS = 2
+    NUM_PER_CLASS = 3
     OVER=125
     init_game()
-    
     cv2.namedWindow('cam', cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty('cam', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     executor = ThreadPoolExecutor(max_workers=5)
