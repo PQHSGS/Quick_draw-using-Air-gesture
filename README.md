@@ -34,12 +34,6 @@ Follow the documentation [here](https://github.com/googlecreativelab/quickdraw-d
 16) Tree
 17) watermelon
 
-## Python  Implementation 👨‍🔬
-
-1) Network Used- Convolutional Neural Network
-
-If you face any problem, kindly raise an issue
-
 ## Setup 🖥️
 
  You will need to have install libraries in the requirement.txt file and get the dataset as mentioned above and place the `.npy` files in `/data` folder.
