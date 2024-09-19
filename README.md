@@ -43,9 +43,11 @@ You can use the Vietnamese version or the English version
 
 ## Results and Evaluation 📊
 - The result:
+  
 https://github.com/user-attachments/assets/60a1db4a-6a7c-4a09-be22-98f560bd5b36
 
 - The game can still be developed further such as: visualize/ enhance the drawing effect; turn the drawing into 1 vs 1 combat game;....
+
 https://github.com/user-attachments/assets/645afa25-f478-4a48-87e7-9ffd9e205181
 
 
