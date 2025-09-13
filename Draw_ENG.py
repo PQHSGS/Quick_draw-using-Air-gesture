@@ -2,7 +2,7 @@ import cv2
 import mediapipe as mp
 import os
 import numpy as np
-from keras.models import load_model
+import torch
 import time
 from PIL import Image, ImageDraw, ImageFont
 
@@ -24,8 +24,8 @@ hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7, min_trackin
 mpdraw = mp.solutions.drawing_utils
 
 # Initialize model
-model_path = 'weights_VGG.h5'  # Corrected path format for cross-platform compatibility
-model = load_model(model_path)
+model_path = 'vgg.pt'  # Corrected path format for cross-platform compatibility
+model = torch.load_state_dict(model_path)
 
 # Load images from the folder and append them to the list
 IMG_SIZE = 120
