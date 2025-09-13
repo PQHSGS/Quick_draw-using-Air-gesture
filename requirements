@@ -1,4 +1,7 @@
 opencv-python
 mediapipe
+<<<<<<< HEAD
+=======
 numpy
+>>>>>>> 259452c5d21041302526519c6292998167600c00
 torch
