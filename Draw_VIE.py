@@ -210,12 +210,12 @@ def main():
                     if gs.xp == 0 and gs.yp == 0: gs.xp, gs.yp = x1, y1
                     cv2.line(gs.canvas, (gs.xp, gs.yp), (x1, y1), (0,255,255), BRUSH_SIZE, cv2.FILLED)
                     gs.xp, gs.yp = x1, y1
-                    gs.is_drawing = check_draw(x1, y1)
+                    gs.is_drawing = check_draw(x1, y1) or gs.is_drawing
                 elif status == 'submit':
                     if gs.is_drawing and (time.time() - gs.last_predict_ts) >= PREDICT_COOLDOWN:
                         attempt_predict(gs, model, frame, time.time(), icons); gs.is_drawing = False
                 else:
-                    gs.phase = Phase.IDLE; gs.xp = gs.yp = 0; gs.is_drawing = False
+                    gs.phase = Phase.IDLE; gs.xp = gs.yp = 0
             frame = blend_canvas(frame, gs)
             if gs.result_icon is not None and (time.time() - gs.last_result_ts) < RESULT_DISPLAY:
                 paste_result_icon(frame, gs.result_icon, (CENTER[0] - EMO_SIZE // 2, CENTER[1] - EMO_SIZE // 2))
