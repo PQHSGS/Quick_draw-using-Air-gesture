@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
-from ModelArchitect import VGG_Small
+from ModelArchitect import VGG_32, VGG_64
 from HandTrack import HandDetector
 
 # ---- minimal hyperparams ----
@@ -25,14 +25,15 @@ WIDTH, HEIGHT = 1200, 800
 CENTER = (WIDTH // 2, HEIGHT // 2 - 150)
 BOX_RANGE = 225
 EMO_SIZE = 300
+IMG_SIZE = (32,32)
 NUM_PER_CLASS = 3
 FONT_PATH = "arial.ttf"
 FONT_SIZE = 45
 ICON_FOLDER = Path("icon_v2")
-MODEL_PATH = Path("vgg.pt")
+MODEL_PATH = Path("vgg_32.pt")
 
 CLASSES_VN = np.array([
-    'Quả táo','Quả chuối','Bánh trung thu','Con tàu','Bánh cá','Mặt nạ',
+    'Quả táo','Quả chuối','Bánh trung thu','Con tàu','Mặt nạ','Bánh cá',
     'Bông hoa','Đèn lồng','Con lân','Ông trăng','Quả lê','Quả dứa','Thỏ ngọc',
     'Đèn ông sao','Quả dâu tây','Cây thần','Quả dưa hấu'
 ])
@@ -55,13 +56,20 @@ class GameState:
     emo_id: np.ndarray = field(default_factory=lambda: np.array([]))
     emo_pos: List[int] = field(default_factory=list)
     result_icon = None
+    # Game timer variables
+    game_time: float = 60.0  # Total game time in seconds
+    start_time: float = 0.0  # Game start timestamp
+    is_game_active: bool = False  # Flag to track if game is active
 
     def reset_canvas(self, frame_shape=None):
         if frame_shape is None:
             self.canvas = np.zeros((HEIGHT, WIDTH, 3), np.uint8)
         else:
             h, w = frame_shape[:2]; self.canvas = np.zeros((h, w, 3), np.uint8)
-        self.xp = self.yp = 0; self.phase = Phase.IDLE
+        self.xp = self.yp = 0
+        # Only reset to IDLE if we're not in PLAYING mode
+        if self.phase != Phase.PLAYING:
+            self.phase = Phase.IDLE
 
 # ---- helpers ----
 def load_icons(folder: Path, emo_size=EMO_SIZE):
@@ -110,7 +118,7 @@ def check_draw(x, y):
     return (CENTER[0]-BOX_RANGE) <= x <= (CENTER[0]+BOX_RANGE) and (CENTER[1]-BOX_RANGE) <= y <= (CENTER[1]+BOX_RANGE)
 
 # ---- torch utils ----
-def torch_process_image(canvas: np.ndarray, size=(32,32)):
+def torch_process_image(canvas: np.ndarray, size= IMG_SIZE):
     gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
     _, bw = cv2.threshold(gray, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
     inp = cv2.resize(bw, size).astype(np.float32) / 255.0
@@ -155,11 +163,35 @@ def attempt_predict(gs: GameState, model, frame, now, icons):
     gs.last_result_ts = now
     gs.xp = gs.yp = 0
     if success:
-        gs.combo += 1; gs.draw_count += 1; gs.score += 100 * gs.combo
+        gs.combo += 1
+        gs.draw_count += 1
+        
+        # Award points - in PLAYING mode, give more points based on remaining time
+        if gs.phase == Phase.PLAYING and gs.is_game_active:
+            # Calculate time factor - more time remaining gives more bonus
+            elapsed_time = now - gs.start_time
+            remaining_time = max(0, gs.game_time - elapsed_time)
+            time_factor = max(1.0, remaining_time / gs.game_time * 2.0)  # Scale time factor from 1.0 to 2.0
+            
+            # Calculate points with combo and time bonus
+            points = int(100 * gs.combo * time_factor)
+            gs.score += points
+            
+            # Pick a new target to draw
+            pick_new_target(gs)
+        else:
+            # Regular mode
+            gs.score += 100 * gs.combo
     else:
         gs.combo = 0
-    gs.phase = Phase.SUBMITTED
-    pick_new_target(gs)
+    
+    # Only change to SUBMITTED if not in PLAYING mode
+    if gs.phase != Phase.PLAYING:
+        gs.phase = Phase.SUBMITTED
+    
+    # Only pick a new target if we're not already in PLAYING mode and handling it there
+    if not (gs.phase == Phase.PLAYING and success):
+        pick_new_target(gs)
 
 def blend_canvas(frame, gs):
     if gs.canvas.dtype != frame.dtype: gs.canvas = gs.canvas.astype(frame.dtype)
@@ -174,7 +206,7 @@ def blend_canvas(frame, gs):
 # ---- main ----
 def build_model(path: Path, device=torch.device('cpu')):
     if not path.exists(): raise FileNotFoundError(path)
-    model = VGG_Small(num_classes=len(CLASSES_VN))
+    model = VGG_32(num_classes=len(CLASSES_VN))
     sd = torch.load(path, map_location=device)
     model.load_state_dict(sd.get('state_dict', sd)); model.to(device); model.eval()
     return model
@@ -201,12 +233,53 @@ def main():
                 landmarks = []
             cv2.rectangle(frame, (CENTER[0]-BOX_RANGE, CENTER[1]-BOX_RANGE), (CENTER[0]+BOX_RANGE, CENTER[1]+BOX_RANGE), (0,0,0), 5)
             frame = put_text_unicode(frame, gs.target_name, (CENTER[0]-20, (CENTER[1]-BOX_RANGE)//5))
+            
+            # Display game stats if in PLAYING state
+            if gs.phase == Phase.PLAYING:
+                # Calculate remaining time
+                elapsed_time = time.time() - gs.start_time
+                remaining_time = max(0, gs.game_time - elapsed_time)
+                
+                # Display timer
+                timer_text = f"Thời gian: {int(remaining_time)}s"
+                frame = put_text_unicode(frame, timer_text, (WIDTH - 250, 50), color=(0, 255, 255))
+                
+                # Display score
+                score_text = f"Điểm: {gs.score}"
+                frame = put_text_unicode(frame, score_text, (WIDTH - 250, 100), color=(0, 255, 0))
+                
+                # Display combo
+                combo_text = f"Combo: x{gs.combo}"
+                frame = put_text_unicode(frame, combo_text, (WIDTH - 250, 150), color=(255, 165, 0))
+                
+                # Check if game time is up
+                if remaining_time <= 0 and gs.is_game_active:
+                    gs.is_game_active = False
+                    gs.phase = Phase.IDLE
+                    gs.last_result_ts = time.time()  # Use this to track when game ended
+                
+                # Show game over screen for 5 seconds after game ends
+                if not gs.is_game_active and gs.phase == Phase.IDLE and time.time() - gs.last_result_ts < 5.0:
+                    # Display game over message
+                    game_over_text = "GAME OVER"
+                    frame = put_text_unicode(frame, game_over_text, (CENTER[0] - 100, CENTER[1] - 50), color=(255, 0, 0), font_size=FONT_SIZE*1.5)
+                    
+                    # Display final score
+                    final_score_text = f"Điểm: {gs.score}"
+                    frame = put_text_unicode(frame, final_score_text, (CENTER[0] - 80, CENTER[1]), color=(255, 255, 0))
+                    
+                    # Display final stats
+                    stats_text = f"Số lượng vẽ đúng: {gs.draw_count}"
+                    frame = put_text_unicode(frame, stats_text, (CENTER[0] - 150, CENTER[1] + 50), color=(0, 255, 255))
+            
             status = 'none'
             if landmarks:
                 x1, y1 = landmarks[8][1], landmarks[8][2]
                 status = fingers_state_from_detector(detector); now = time.time()
                 if status == 'draw':
-                    gs.phase = Phase.DRAWING
+                    # Only change phase if we're not in PLAYING mode
+                    if gs.phase != Phase.PLAYING:
+                        gs.phase = Phase.DRAWING
                     if gs.xp == 0 and gs.yp == 0: gs.xp, gs.yp = x1, y1
                     cv2.line(gs.canvas, (gs.xp, gs.yp), (x1, y1), (0,255,255), BRUSH_SIZE, cv2.FILLED)
                     gs.xp, gs.yp = x1, y1
@@ -215,7 +288,10 @@ def main():
                     if gs.is_drawing and (time.time() - gs.last_predict_ts) >= PREDICT_COOLDOWN:
                         attempt_predict(gs, model, frame, time.time(), icons); gs.is_drawing = False
                 else:
-                    gs.phase = Phase.IDLE; gs.xp = gs.yp = 0
+                    # Only reset to IDLE if not in PLAYING mode
+                    if gs.phase != Phase.PLAYING:
+                        gs.phase = Phase.IDLE
+                    gs.xp = gs.yp = 0
             frame = blend_canvas(frame, gs)
             if gs.result_icon is not None and (time.time() - gs.last_result_ts) < RESULT_DISPLAY:
                 paste_result_icon(frame, gs.result_icon, (CENTER[0] - EMO_SIZE // 2, CENTER[1] - EMO_SIZE // 2))
@@ -225,7 +301,14 @@ def main():
             k = cv2.waitKey(1) & 0xFF
             if k == ord('q'): break
             if k == ord('c'): gs.reset_canvas(frame.shape)
-            if k == ord('p'): gs.phase = Phase.PLAYING
+            if k == ord('p') and gs.phase != Phase.PLAYING: 
+                gs.phase = Phase.PLAYING
+                gs.start_time = time.time()
+                gs.is_game_active = True
+                gs.score = 0
+                gs.combo = 0
+                gs.draw_count = 0
+                pick_new_target(gs)
             gs.frame_count += 1
     finally:
         cap.release(); cv2.destroyAllWindows()
