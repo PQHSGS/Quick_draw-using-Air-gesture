@@ -1,3 +1,14 @@
-.gdg/
-.vscode/
+# Môi trường ảo
+venv/
+venv_tf/
+venv_jax/
+env/
+.env
+
+# Thư mục cache của Python
 __pycache__/
+*.pyc
+
+# Các file của IDE
+.vscode/
+.idea/
