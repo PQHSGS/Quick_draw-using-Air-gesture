@@ -25,19 +25,20 @@ WIDTH, HEIGHT = 1200, 800
 CENTER = (WIDTH // 2, HEIGHT // 2 - 150)
 BOX_RANGE = 225
 EMO_SIZE = 300
-IMG_SIZE = (32,32)
+IMG_SIZE = (64,64)
 NUM_PER_CLASS = 3
 FONT_PATH = "arial.ttf"
 FONT_SIZE = 45
 ICON_FOLDER = Path("icon_v2")
-MODEL_PATH = Path("vgg_32.pt")
+MODEL_PATH = Path("vgg_64.pt")
 
 CLASSES_VN = np.array([
     'Quả táo','Quả chuối','Bánh trung thu','Con tàu','Mặt nạ','Bánh cá',
     'Bông hoa','Đèn lồng','Con lân','Ông trăng','Quả lê','Quả dứa','Thỏ ngọc',
     'Đèn ông sao','Quả dâu tây','Cây thần','Quả dưa hấu'
 ])
-
+PREDICT_CONFIDENCE = 0.5
+TIME = 90
 class Phase(Enum):
     IDLE = auto(); DRAWING = auto(); SUBMITTED = auto(); PLAYING = auto()
 
@@ -48,7 +49,7 @@ class GameState:
     xp: int = 0; yp: int = 0
     last_predict_ts: float = 0.0
     last_result_ts: float = 0.0
-    is_drawing: bool = False
+    has_drawn: bool = False
     score: int = 0; combo: int = 0; draw_count: int = 0
     frame_count: int = 0
     target_id: int = 0; target_name: str = ''
@@ -57,7 +58,7 @@ class GameState:
     emo_pos: List[int] = field(default_factory=list)
     result_icon = None
     # Game timer variables
-    game_time: float = 60.0  # Total game time in seconds
+    game_time: float = TIME  # Total game time in seconds
     start_time: float = 0.0  # Game start timestamp
     is_game_active: bool = False  # Flag to track if game is active
 
@@ -122,6 +123,7 @@ def torch_process_image(canvas: np.ndarray, size= IMG_SIZE):
     gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
     _, bw = cv2.threshold(gray, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
     inp = cv2.resize(bw, size).astype(np.float32) / 255.0
+    #cv2.imwrite("debug_input.png", (inp * 255).astype(np.uint8))
     return torch.from_numpy(inp).unsqueeze(0).unsqueeze(0)
 
 def torch_predict(model: torch.nn.Module, image: np.ndarray, device=torch.device('cpu'), k=3):
@@ -134,7 +136,8 @@ def torch_predict(model: torch.nn.Module, image: np.ndarray, device=torch.device
     for r, idx in enumerate(inds, 1):
         print(f"  {r}. {CLASSES_VN[idx]} ({probs[idx]:.3f})", end=' ')
     print()
-    return inds
+    probs = sorted(probs)[-k:][::-1]
+    return inds, probs
 
 def fingers_state_from_detector(detector) -> str:
     fingers = detector.fingersUp()
@@ -150,22 +153,23 @@ def attempt_predict(gs: GameState, model, frame, now, icons):
     y0 = max(0, CENTER[1] - BOX_RANGE); y1b = min(gs.canvas.shape[0], CENTER[1] + BOX_RANGE)
     x0 = max(0, CENTER[0] - BOX_RANGE); x1b = min(gs.canvas.shape[1], CENTER[0] + BOX_RANGE)
     box = gs.canvas[y0:y1b, x0:x1b]
-    class_label = np.array([-1]) if box.size == 0 or box.shape[0] < 4 or box.shape[1] < 4 else torch_predict(model, box)
-    success = class_label.size > 0 and gs.target_id in class_label
-    chosen_icon = None
+    class_label, probs = torch_predict(model, box)
+    print(probs)
+    print(class_label)
+    success = gs.target_id in class_label and probs[0] >= PREDICT_CONFIDENCE
     if success and icons:
         base_idx = gs.target_id * NUM_PER_CLASS
-        if base_idx < len(icons):
-            chosen_icon = icons[min(base_idx + np.random.randint(0, NUM_PER_CLASS), len(icons)-1)]
+        chosen_icon = icons[min(base_idx + np.random.randint(0, NUM_PER_CLASS), len(icons)-1)]
+    else: 
+        chosen_icon = icons[class_label[0]] if icons else None
     gs.reset_canvas(frame.shape)
     gs.last_predict_ts = now
-    gs.result_icon = chosen_icon if success else None
     gs.last_result_ts = now
+    gs.result_icon = chosen_icon
     gs.xp = gs.yp = 0
     if success:
         gs.combo += 1
         gs.draw_count += 1
-        
         # Award points - in PLAYING mode, give more points based on remaining time
         if gs.phase == Phase.PLAYING and gs.is_game_active:
             # Calculate time factor - more time remaining gives more bonus
@@ -206,7 +210,7 @@ def blend_canvas(frame, gs):
 # ---- main ----
 def build_model(path: Path, device=torch.device('cpu')):
     if not path.exists(): raise FileNotFoundError(path)
-    model = VGG_32(num_classes=len(CLASSES_VN))
+    model = VGG_64(num_classes=len(CLASSES_VN))
     sd = torch.load(path, map_location=device)
     model.load_state_dict(sd.get('state_dict', sd)); model.to(device); model.eval()
     return model
@@ -220,7 +224,7 @@ def main():
     gs.emo_id = np.random.choice(len(CLASSES_VN), GAME_SIZE)
     gs.emo_list = [CLASSES_VN[i] for i in gs.emo_id]; gs.emo_pos = [i * 12 for i in range(GAME_SIZE)]
     pick_new_target(gs)
-    detector = HandDetector(maxHands=1, detectionCon=0.7, trackCon=0.7)
+    detector = HandDetector(maxHands=1, detectionCon=0.5, trackCon=0.5,)
     try:
         while True:
             ret, frame = cap.read()
@@ -283,10 +287,10 @@ def main():
                     if gs.xp == 0 and gs.yp == 0: gs.xp, gs.yp = x1, y1
                     cv2.line(gs.canvas, (gs.xp, gs.yp), (x1, y1), (0,255,255), BRUSH_SIZE, cv2.FILLED)
                     gs.xp, gs.yp = x1, y1
-                    gs.is_drawing = check_draw(x1, y1) or gs.is_drawing
+                    gs.has_drawn = check_draw(x1, y1) or gs.has_drawn
                 elif status == 'submit':
-                    if gs.is_drawing and (time.time() - gs.last_predict_ts) >= PREDICT_COOLDOWN:
-                        attempt_predict(gs, model, frame, time.time(), icons); gs.is_drawing = False
+                    if gs.has_drawn and (time.time() - gs.last_predict_ts) >= PREDICT_COOLDOWN:
+                        attempt_predict(gs, model, frame, time.time(), icons); gs.has_drawn = False
                 else:
                     # Only reset to IDLE if not in PLAYING mode
                     if gs.phase != Phase.PLAYING:
