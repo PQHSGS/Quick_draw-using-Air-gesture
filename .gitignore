@@ -1,14 +1,20 @@
-# Môi trường ảo
-venv/
+# Bỏ qua thư mục môi trường ảo
 venv_tf/
-venv_jax/
-env/
-.env
 
-# Thư mục cache của Python
+# Bỏ qua bộ đệm Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Các file của IDE
+# Bỏ qua các tệp dành riêng cho trình chỉnh sửa và IDE
 .vscode/
 .idea/
+
+# Bỏ qua các tệp nhật ký và bộ đệm
+*.log
+.cache/
+
+# Bỏ qua các tệp dành riêng cho hệ điều hành
+.DS_Store
+Thumbs.db
