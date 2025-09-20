@@ -60,8 +60,23 @@ class MainMenuState(State):
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
 
     def handle_event(self, event):
+        # Xử lý nhấn phím 'P'
         if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
             self.game.push_state(PlayingState(self.game))
+
+        # MỚI: Xử lý sự kiện click chuột
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1: # 1 là click chuột trái
+                # Chuyển đổi tọa độ chuột từ màn hình vật lý sang màn hình ảo
+                phys_w, phys_h = self.game.screen.get_size()
+                scale_x = WIDTH / phys_w
+                scale_y = HEIGHT / phys_h
+                virtual_pos = (event.pos[0] * scale_x, event.pos[1] * scale_y)
+
+                # Kiểm tra va chạm trên màn hình ảo
+                if self.start_button.rect.collidepoint(virtual_pos):
+                    self.game.push_state(PlayingState(self.game))
+
 
 class GameOverState(State):
     def __init__(self, game, final_score):
@@ -91,8 +106,21 @@ class GameOverState(State):
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
 
     def handle_event(self, event):
+        # Xử lý nhấn phím 'R'
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
             self.game.reset_to_playing_state()
+
+        # MỚI: Xử lý sự kiện click chuột
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                phys_w, phys_h = self.game.screen.get_size()
+                scale_x = WIDTH / phys_w
+                scale_y = HEIGHT / phys_h
+                virtual_pos = (event.pos[0] * scale_x, event.pos[1] * scale_y)
+
+                if self.restart_button.rect.collidepoint(virtual_pos):
+                    self.game.reset_to_playing_state()
+
 
 class PlayingState(State):
     def __init__(self, game):
@@ -148,22 +176,17 @@ class PlayingState(State):
         
         result = self.game.predictor.get_latest_result()
         if result is not None:
-            
-            # --- THÊM LẠI PHẦN LOG BỊ MẤT ---
             print("-" * 30)
             print(f"Vật thể cần vẽ: {self.target_name}")
             print("Model dự đoán:")
             for i, (name, prob) in enumerate(result):
                 print(f"  {i+1}. {name} ({(prob*100):.2f}%)")
-            # ------------------------------------
 
             result_ids = [np.where(CLASSES_VN == name)[0][0] for name, prob in result]
 
             if self.target_id in result_ids:
-                # --- THÊM LẠI PHẦN LOG BỊ MẤT ---
                 print(">>> Kết quả: ĐÚNG!")
                 print("-" * 30)
-                # ------------------------------------
                 self.combo += 1
                 self.score += 100 * self.combo
                 self.result_icon = self.game.assets['icons']['correct']
@@ -171,10 +194,8 @@ class PlayingState(State):
                 self.score_effect_timer = 0.5
                 self.combo_effect_timer = 0.5
             else:
-                # --- THÊM LẠI PHẦN LOG BỊ MẤT ---
                 print(">>> Kết quả: SAI!")
                 print("-" * 30)
-                # ------------------------------------
                 self.combo = 0
                 self.result_icon = self.game.assets['icons']['incorrect']
                 self.game.assets['sounds']['incorrect'].play()
