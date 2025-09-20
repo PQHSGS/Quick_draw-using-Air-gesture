@@ -33,6 +33,8 @@ CANVAS_Y = (HEIGHT - CANVAS_HEIGHT) // 2
 ASSETS_PATH = Path("assets") # Thư mục tài nguyên chung
 MODEL_PATH = ASSETS_PATH / "vgg.pt"
 FONT_PATH = ASSETS_PATH / "arial.ttf"
+FONT_PATH_REGULAR = ASSETS_PATH / "arial.ttf" # Giữ lại cho text nhỏ
+FONT_PATH_BOLD = ASSETS_PATH / "FC-Lilita-One-Regular.otf" # Font chính cho tiêu đề/UI
 CLASSES_VN = np.array([
     'Quả táo', 'Quả chuối', 'Bánh trung thu', 'Con tàu', 'Bánh cá', 'Mặt nạ',
     'Bông hoa', 'Đèn lồng', 'Con lân', 'Ông trăng', 'Quả lê', 'Quả dứa', 'Thỏ ngọc',
@@ -48,3 +50,10 @@ HEADER_HEIGHT = 90 # Chiều cao của thanh HUD
 HEADER_COLOR = (20, 20, 20, 200) # Màu xám đen, bán trong suốt (R, G, B, Alpha)
 TIMER_LOW_COLOR = (255, 50, 50) # Màu đỏ khi thời gian sắp hết
 COMBO_COLOR = (50, 255, 50) # Màu xanh lá cây sáng cho combo
+
+BUTTON_WIDTH = 300
+BUTTON_HEIGHT = 80
+BUTTON_COLOR = (40, 40, 80) # Xanh đậm
+BUTTON_HOVER_COLOR = (70, 70, 120) # Sáng hơn khi di chuột vào
+BUTTON_TEXT_COLOR = WHITE
+BUTTON_FONT_SIZE = 40   
