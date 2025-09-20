@@ -8,6 +8,11 @@ class Canvas:
         self.rect = pygame.Rect(x, y, width, height)
         # surface là nơi thực sự diễn ra việc vẽ
         self.surface = pygame.Surface((width, height))
+
+        # MỚI: Đặt màu đen (BLACK) làm màu trong suốt cho canvas.
+        # Bất kỳ pixel nào có màu này trên self.surface sẽ không được vẽ (blit).
+        self.surface.set_colorkey(BLACK)
+
         self.surface.fill(BLACK) # Nền đen cho canvas
 
         # Biến để theo dõi trạng thái vẽ

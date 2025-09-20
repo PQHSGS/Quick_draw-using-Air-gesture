@@ -41,7 +41,7 @@ class GameOverState(State):
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
             # Quay lại Main Menu bằng cách pop state hiện tại
-            self.game.pop_state()
+            self.game.reset_to_playing_state()
 
 # === CẬP NHẬT PLAYING STATE ===
 class PlayingState(State):
@@ -67,7 +67,9 @@ class PlayingState(State):
     def update(self):
         self.time_left = TOTAL_TIME - (time.time() - self.start_time)
         if self.time_left <= 0:
-            # Chuyển sang trạng thái GameOver
+            # THAY ĐỔI: pop PlayingState hiện tại trước khi đẩy GameOverState
+            # để đảm bảo stack luôn đúng
+            self.game.pop_state() 
             self.game.push_state(GameOverState(self.game, self.score))
             return
 
