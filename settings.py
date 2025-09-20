@@ -50,6 +50,15 @@ HEADER_HEIGHT = 90 # Chiều cao của thanh HUD
 HEADER_COLOR = (20, 20, 20, 200) # Màu xám đen, bán trong suốt (R, G, B, Alpha)
 TIMER_LOW_COLOR = (255, 50, 50) # Màu đỏ khi thời gian sắp hết
 COMBO_COLOR = (50, 255, 50) # Màu xanh lá cây sáng cho combo
+AVAILABLE_COLORS = {
+    "Đen": (0, 0, 0),
+    "Trắng": (255, 255, 255),
+    "Đỏ": (255, 0, 0),
+    "Xanh lá": (0, 255, 0),
+    "Xanh dương": (0, 0, 255),
+    "Vàng": (255, 255, 0),
+    "Tím": (128, 0, 128)
+}
 
 BUTTON_WIDTH = 300
 BUTTON_HEIGHT = 80

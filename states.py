@@ -12,6 +12,8 @@ from gestures import (
     is_click_gesture
 )
 from ui import draw_game_hud, draw_text
+from config_manager import save_settings
+
 
 class State:
     def __init__(self, game):
@@ -33,28 +35,128 @@ class State:
     def handle_event(self, event):
         pass
 
+# === TRẠNG THÁI MỚI: CÀI ĐẶT ===
+class SettingsState(State):
+    def __init__(self, game):
+        super().__init__(game)
+        self.last_click_time = 0
+        
+        # Tạo button Quay lại
+        self.back_button = Button(50, HEIGHT - 120, "Quay lại")
+        
+        # UI cho Thời gian
+        self.time_minus_btn = pygame.Rect(WIDTH // 2, 200, 50, 50)
+        self.time_plus_btn = pygame.Rect(WIDTH // 2 + 150, 200, 50, 50)
+
+        # UI cho Màu bút
+        self.brush_color_swatches = []
+        for i, color in enumerate(AVAILABLE_COLORS.values()):
+            rect = pygame.Rect(WIDTH // 2 - 150 + i * 60, 350, 50, 50)
+            self.brush_color_swatches.append({'rect': rect, 'color': color})
+            
+        # UI cho Màu nền
+        self.bg_color_swatches = []
+        for i, color in enumerate(AVAILABLE_COLORS.values()):
+            rect = pygame.Rect(WIDTH // 2 - 150 + i * 60, 500, 50, 50)
+            self.bg_color_swatches.append({'rect': rect, 'color': color})
+
+    def update(self):
+        self.update_cursor()
+        self.back_button.check_hover(self.cursor_pos)
+        
+        landmarks = self.game.hand_tracker.get_landmarks()
+        is_clicking = is_click_gesture(landmarks) and (time.time() - self.last_click_time > 0.5)
+
+        if self.back_button.is_hovered and is_clicking:
+            save_settings(self.game.settings) # Lưu cài đặt
+            self.game.pop_state() # Quay lại Main Menu
+            return # Dừng update để tránh lỗi
+
+        if is_clicking:
+            # Xử lý nút thời gian
+            if self.time_minus_btn.collidepoint(self.cursor_pos):
+                self.game.settings['game_time'] = max(10, self.game.settings['game_time'] - 5)
+                self.last_click_time = time.time()
+            if self.time_plus_btn.collidepoint(self.cursor_pos):
+                self.game.settings['game_time'] = min(300, self.game.settings['game_time'] + 5)
+                self.last_click_time = time.time()
+                
+            # Xử lý màu bút
+            for swatch in self.brush_color_swatches:
+                if swatch['rect'].collidepoint(self.cursor_pos):
+                    self.game.settings['brush_color'] = swatch['color']
+                    self.last_click_time = time.time()
+            
+            # Xử lý màu nền
+            for swatch in self.bg_color_swatches:
+                if swatch['rect'].collidepoint(self.cursor_pos):
+                    self.game.settings['background_color'] = swatch['color']
+                    self.last_click_time = time.time()
+
+    def draw(self, surface):
+        self.game.draw_blurred_webcam_bg(surface)
+        draw_text(surface, "Cài đặt", (WIDTH // 2, 80), FONT_PATH_BOLD, 100, WHITE)
+        self.back_button.draw(surface)
+
+        # Vẽ UI Thời gian
+        draw_text(surface, "Thời gian chơi:", (WIDTH // 4, 225), FONT_PATH_REGULAR, 40, WHITE)
+        pygame.draw.rect(surface, BUTTON_COLOR, self.time_minus_btn, border_radius=10)
+        pygame.draw.rect(surface, BUTTON_COLOR, self.time_plus_btn, border_radius=10)
+        draw_text(surface, "-", self.time_minus_btn.center, FONT_PATH_BOLD, 50, WHITE)
+        draw_text(surface, "+", self.time_plus_btn.center, FONT_PATH_BOLD, 50, WHITE)
+        draw_text(surface, f"{self.game.settings['game_time']}s", (WIDTH // 2 + 100, 225), FONT_PATH_BOLD, 50, WHITE)
+
+        # Vẽ UI Màu bút
+        draw_text(surface, "Màu bút vẽ:", (WIDTH // 4, 375), FONT_PATH_REGULAR, 40, WHITE)
+        for swatch in self.brush_color_swatches:
+            pygame.draw.rect(surface, swatch['color'], swatch['rect'], border_radius=10)
+            # Vẽ viền trắng cho màu đang được chọn
+            if tuple(self.game.settings['brush_color']) == swatch['color']:
+                pygame.draw.rect(surface, WHITE, swatch['rect'], 4, 10)
+
+        # Vẽ UI Màu nền
+        draw_text(surface, "Màu nền:", (WIDTH // 4, 525), FONT_PATH_REGULAR, 40, WHITE)
+        for swatch in self.bg_color_swatches:
+            pygame.draw.rect(surface, swatch['color'], swatch['rect'], border_radius=10)
+            if tuple(self.game.settings['background_color']) == swatch['color']:
+                pygame.draw.rect(surface, WHITE, swatch['rect'], 4, 10)
+
+        pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
+
+    def handle_event(self, event):
+        # ... (Tạm thời có thể bỏ qua xử lý chuột ở đây vì đã xử lý bằng cử chỉ)
+        pass
+
+
 class MainMenuState(State):
     def __init__(self, game):
         super().__init__(game)
-        button_x = (WIDTH - BUTTON_WIDTH) // 2
-        button_y = HEIGHT // 2
-        self.start_button = Button(button_x, button_y, "Bắt đầu")
+        btn_x = (WIDTH - BUTTON_WIDTH) // 2
+        self.start_button = Button(btn_x, HEIGHT // 2 - 60, "Bắt đầu")
+        self.settings_button = Button(btn_x, HEIGHT // 2 + 40, "Cài đặt") # Nút mới
         self.last_click_time = 0
 
     def update(self):
         self.update_cursor()
         self.start_button.check_hover(self.cursor_pos)
+        self.settings_button.check_hover(self.cursor_pos)
         
         landmarks = self.game.hand_tracker.get_landmarks()
-        if self.start_button.is_hovered and is_click_gesture(landmarks) and (time.time() - self.last_click_time > 1):
-            self.game.push_state(PlayingState(self.game))
-            self.last_click_time = time.time()
+        is_clicking = is_click_gesture(landmarks) and (time.time() - self.last_click_time > 1)
+
+        if is_clicking:
+            if self.start_button.is_hovered:
+                self.game.push_state(PlayingState(self.game))
+                self.last_click_time = time.time()
+            elif self.settings_button.is_hovered:
+                self.game.push_state(SettingsState(self.game)) # Chuyển sang màn cài đặt
+                self.last_click_time = time.time()
 
     def draw(self, surface):
         self.game.draw_blurred_webcam_bg(surface)
-        
         draw_text(surface, "Drawing Game", (WIDTH // 2, HEIGHT // 4), FONT_PATH_BOLD, 120, WHITE)
         self.start_button.draw(surface)
+        self.settings_button.draw(surface)
         draw_text(surface, "Dùng ngón trỏ để di chuyển, chụm 2 ngón để click", (WIDTH // 2, HEIGHT - 50), FONT_PATH_REGULAR, 24, WHITE)
         
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
@@ -129,7 +231,9 @@ class PlayingState(State):
         self.score = 0
         self.combo = 0
         self.start_time = time.time()
-        self.time_left = TOTAL_TIME
+        self.time_left = self.game.settings['game_time']
+        self.total_time = self.game.settings['game_time'] # Lưu lại tổng thời gian
+        self.brush_color = self.game.settings['brush_color']
         self.last_submit_time = 0
         self.result_icon = None
         self.result_display_end_time = 0
@@ -145,7 +249,7 @@ class PlayingState(State):
 
     def update(self):
         self.update_cursor()
-        self.time_left = TOTAL_TIME - (time.time() - self.start_time)
+        self.time_left = self.total_time - (time.time() - self.start_time)
 
         if self.score_effect_timer > 0: self.score_effect_timer -= self.game.dt
         if self.combo_effect_timer > 0: self.combo_effect_timer -= self.game.dt
@@ -164,7 +268,7 @@ class PlayingState(State):
             pos = self.cursor_pos
             canvas_pos = (pos[0] - self.canvas.rect.x, pos[1] - self.canvas.rect.y)
             if not self.canvas.is_drawing: self.canvas.start_drawing(canvas_pos)
-            self.canvas.draw_line(canvas_pos, BRUSH_SIZE, TOOL_COLOR)
+            self.canvas.draw_line(canvas_pos, BRUSH_SIZE, self.brush_color)
         else:
             if self.canvas.is_drawing: self.canvas.stop_drawing()
 

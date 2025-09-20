@@ -8,6 +8,7 @@ from hand_tracker import HandTracker
 from predictor import Predictor
 from states import MainMenuState
 from assets_loader import load_all_assets
+from config_manager import load_settings, save_settings
 
 class Game:
     def __init__(self):
@@ -18,6 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
+        self.settings = load_settings()
         self.assets = load_all_assets()
 
         self.webcam_stream = WebcamStream()
@@ -98,7 +100,7 @@ class Game:
             else:
                 self.virtual_screen.fill(GRAY)
         else:
-            self.virtual_screen.fill(BLACK)
+            self.virtual_screen.fill(self.settings['background_color'])
         
         self.states[-1].draw(self.virtual_screen)
         
@@ -114,6 +116,7 @@ class Game:
         pygame.display.flip()
 
     def quit(self):
+        save_settings(self.settings)
         self.webcam_stream.stop()
         self.hand_tracker.stop()
         self.predictor.stop()
