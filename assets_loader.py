@@ -15,6 +15,9 @@ def load_all_assets():
         incorrect_icon = pygame.image.load(ASSETS_PATH / "icons" / "incorrect.png").convert_alpha()
         assets['icons']['correct'] = pygame.transform.scale(correct_icon, (200, 200))
         assets['icons']['incorrect'] = pygame.transform.scale(incorrect_icon, (200, 200))
+        assets['icons']['pause'] = pygame.image.load(ASSETS_PATH / "icons" / "pause_icon.png").convert_alpha()
+        assets['icons']['play'] = pygame.image.load(ASSETS_PATH / "icons" / "play_icon.png").convert_alpha()
+        assets['icons']['home'] = pygame.image.load(ASSETS_PATH / "icons" / "home_icon.png").convert_alpha()
         print("Tải icons thành công.")
     except Exception as e:
         print(f"Lỗi khi tải icons: {e}")

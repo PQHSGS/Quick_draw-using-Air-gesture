@@ -1,9 +1,9 @@
 {
-    "game_time": 40,
+    "game_time": 60,
     "brush_color": [
+        255,
         0,
-        0,
-        255
+        0
     ],
     "background_color": [
         0,

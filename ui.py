@@ -21,25 +21,35 @@ def draw_text(surface, text, pos, font_path, font_size, color, center_aligned=Tr
             text_rect = text_surface.get_rect(topleft=pos)
         surface.blit(text_surface, text_rect)
 
-def draw_game_hud(surface, score, combo, time_left, target_text, score_effect_timer, combo_effect_timer):
+def draw_game_hud(surface, score, combo, time_left, target_text, score_effect_timer, combo_effect_timer, pause_button, home_button):
+    """Vẽ một thanh HUD hoàn chỉnh, bao gồm cả các nút bấm."""
     header_surface = pygame.Surface((WIDTH, HEADER_HEIGHT), pygame.SRCALPHA)
     header_surface.fill(HEADER_COLOR)
     surface.blit(header_surface, (0, 0))
 
+    # 1. Vẽ đồng hồ đếm ngược (bên trái)
     timer_pos = (80, HEADER_HEIGHT // 2)
     time_str = f"{math.ceil(time_left)}"
     timer_color = TIMER_LOW_COLOR if time_left < 10 else YELLOW
     draw_text(surface, time_str, timer_pos, FONT_PATH_BOLD, 60, timer_color)
     pygame.draw.circle(surface, timer_color, timer_pos, 45, 6)
 
+    # 2. Vẽ vật thể cần vẽ (ở giữa)
     target_pos = (WIDTH // 2, HEADER_HEIGHT // 2)
     draw_text(surface, f"Vẽ: {target_text}", target_pos, FONT_PATH_BOLD, TARGET_FONT_SIZE, WHITE)
 
+    # 3. MỚI: Vẽ các nút Pause và Home ở hai bên của text "Vẽ"
+    # Các button này sẽ được truyền vào từ PlayingState
+    pause_button.draw(surface)
+    home_button.draw(surface)
+
+    # 4. Vẽ Điểm và Combo (bên phải)
     score_y_pos = HEADER_HEIGHT * 0.33
     combo_y_pos = HEADER_HEIGHT * 0.66
     score_anchor = (WIDTH - 25, score_y_pos)
     combo_anchor = (WIDTH - 25, combo_y_pos)
 
+    # ... (phần code hiệu ứng cho điểm và combo giữ nguyên) ...
     score_color = UI_FONT_COLOR
     score_size = UI_FONT_SIZE
     if score_effect_timer > 0:
