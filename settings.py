@@ -15,9 +15,10 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 GRAY = (128, 128, 128)
+COLUMBIABLUE = (201, 240, 255)
 
 # Cấu hình game
-TOOL_COLOR = YELLOW
+TOOL_COLOR = COLUMBIABLUE
 BRUSH_SIZE = 12
 TOTAL_TIME = 60 # Tổng thời gian một màn chơi (giây)
 
@@ -39,7 +40,11 @@ CLASSES_VN = np.array([
 ])
 
 # Cấu hình UI
-UI_FONT_SIZE = 36
+UI_FONT_SIZE = 32
 UI_FONT_COLOR = WHITE
 TARGET_FONT_SIZE = 50
 TARGET_FONT_COLOR = RED
+HEADER_HEIGHT = 90 # Chiều cao của thanh HUD
+HEADER_COLOR = (20, 20, 20, 200) # Màu xám đen, bán trong suốt (R, G, B, Alpha)
+TIMER_LOW_COLOR = (255, 50, 50) # Màu đỏ khi thời gian sắp hết
+COMBO_COLOR = (50, 255, 50) # Màu xanh lá cây sáng cho combo

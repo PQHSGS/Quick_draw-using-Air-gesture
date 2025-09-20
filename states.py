@@ -5,7 +5,7 @@ import time
 from settings import *
 from canvas import Canvas
 import gestures
-from ui import draw_hud, draw_text
+from ui import *
 
 class State:
     def __init__(self, game):
@@ -17,10 +17,7 @@ class State:
 # === TRẠNG THÁI MỚI: MAIN MENU ===
 class MainMenuState(State):
     def draw(self, surface):
-        draw_text(surface, "DRAWING GAME", (WIDTH // 2, HEIGHT // 3), 100, WHITE)
-        draw_text(surface, "Giơ ngón trỏ để vẽ", (WIDTH // 2, HEIGHT // 2), 50, YELLOW)
-        draw_text(surface, "Xòe bàn tay để nộp bài", (WIDTH // 2, HEIGHT // 2 + 60), 50, YELLOW)
-        draw_text(surface, "Nhấn 'P' để Bắt đầu", (WIDTH // 2, HEIGHT * 2 / 3 + 50), 60, GREEN)
+        draw_main_menu(surface)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
@@ -34,9 +31,7 @@ class GameOverState(State):
         self.final_score = final_score
 
     def draw(self, surface):
-        draw_text(surface, "HẾT GIỜ!", (WIDTH // 2, HEIGHT // 3), 100, RED)
-        draw_text(surface, f"Điểm cuối cùng: {self.final_score}", (WIDTH // 2, HEIGHT // 2), 70, WHITE)
-        draw_text(surface, "Nhấn 'R' để Chơi lại", (WIDTH // 2, HEIGHT * 2 / 3 + 50), 60, GREEN)
+        draw_game_over(surface, self.final_score)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
@@ -136,7 +131,7 @@ class PlayingState(State):
 
     def draw(self, surface):
         self.canvas.draw_to_screen(surface)
-        draw_hud(surface, self.score, self.combo, self.time_left, self.target_name)
+        draw_game_hud(surface, self.score, self.combo, self.time_left, self.target_name)
         
         # Vẽ icon kết quả nếu có
         if self.result_icon:
