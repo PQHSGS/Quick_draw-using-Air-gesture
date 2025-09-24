@@ -6,6 +6,8 @@ import numpy as np
 WIDTH = 1280
 HEIGHT = 720
 FPS = 60
+IMG_SIZE = (64, 64)  # Kích thước đầu vào của model (ví dụ)
+MASK_THRESHOLD = 0.5   # Ngưỡng để tạo ảnh đen trắng
 
 # Màu sắc
 WHITE = (255, 255, 255)

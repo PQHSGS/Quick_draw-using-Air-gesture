@@ -6,7 +6,8 @@ import numpy as np
 import pygame
 import cv2
 import torch
-from settings import MODEL_PATH, CLASSES_VN
+from settings import IMG_SIZE, MASK_THRESHOLD, MODEL_PATH, CLASSES_VN
+from settings import *
 from ModelArchitect import VGG_Small # Đảm bảo file ModelArchitect.py ở cùng thư mục
 
 class Predictor(threading.Thread):
@@ -40,18 +41,32 @@ class Predictor(threading.Thread):
             return None
 
     def _preprocess_surface(self, surface: pygame.Surface) -> torch.Tensor:
-        # Chuyển pygame.Surface thành mảng numpy
+        """
+        Tiền xử lý pygame.Surface theo logic mới, bao gồm cả bước chuẩn hóa.
+        """
+        # 1. Chuyển pygame.Surface thành mảng numpy BGR của OpenCV
         view = pygame.surfarray.pixels3d(surface)
-        img_bgr = np.transpose(view, (1, 0, 2)) # Chuyển từ (width, height, c) sang (height, width, c)
-        
-        # Tiền xử lý giống code cũ
-        gray = cv2.cvtColor(img_bgr, cv2.COLOR_RGB2GRAY)
-        _, bw = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
-        inp = cv2.resize(bw, (32, 32)) # Model VGG_Small thường dùng size 32x32
-        inp = inp.astype(np.float32) / 255.0
-        tensor = torch.from_numpy(inp).unsqueeze(0).unsqueeze(0)
-        return tensor
+        img_bgr = np.transpose(view, (1, 0, 2))
+        img_bgr = cv2.cvtColor(img_bgr, cv2.COLOR_RGB2BGR) # surfarray là RGB, opencv cần BGR
 
+        # 2. Áp dụng logic xử lý mới
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        _, bw = cv2.threshold(gray, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
+        inp = cv2.resize(bw, IMG_SIZE).astype(np.float32) / 255.0  # Chuyển về dải [0, 1]
+
+        # 3. Chuẩn hóa về dải [-1, 1]
+        inp = (inp - 0.5) / 0.5
+
+        # 4. (Tùy chọn) Lưu ảnh debug để kiểm tra
+        # Dòng này sẽ tạo một file debug_input.png trong thư mục dự án mỗi khi bạn nộp bài.
+        try:
+            cv2.imwrite("debug_input.png", ((inp + 1) * 127.5).astype(np.uint8))
+        except Exception as e:
+            print(f"Lỗi khi lưu ảnh debug: {e}")
+
+        # 5. Chuyển thành Tensor
+        return torch.from_numpy(inp).unsqueeze(0).unsqueeze(0)  # [1,1,H,W]
+    
     def run(self):
         self.running = True
         while self.running:
