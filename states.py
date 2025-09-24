@@ -43,6 +43,9 @@ class State:
         pass
 
 class SettingsState(State):
+    # LƯU Ý: Lớp SettingsState vẫn sử dụng cơ chế click tức thì do đang dùng pygame.Rect
+    # thay vì lớp Button. Việc nâng cấp lớp này sẽ cần chuyển các nút +/- và các ô màu
+    # thành các đối tượng Button riêng để áp dụng logic "giữ để chọn".
     def __init__(self, game):
         super().__init__(game)
         self.last_click_time = 0
@@ -62,12 +65,17 @@ class SettingsState(State):
         self.update_cursor()
         self.back_button.check_hover(self.cursor_pos)
         landmarks = self.game.hand_tracker.get_landmarks()
-        is_clicking = is_click_gesture(landmarks) and (time.time() - self.last_click_time > 0.5)
-        if self.back_button.is_hovered and is_clicking:
+        
+        # Áp dụng logic "giữ để chọn" cho nút quay lại.
+        is_clicking = is_click_gesture(landmarks)
+        if self.back_button.update_hold(is_clicking):
             save_settings(self.game.settings)
             self.game.pop_state()
             return
-        if is_clicking:
+
+        # Giữ lại logic click tức thì cho các nút +/- và ô màu.
+        is_instant_click = is_clicking and (time.time() - self.last_click_time > 0.5)
+        if is_instant_click:
             self.check_interaction(self.cursor_pos)
 
     def check_interaction(self, pos):
@@ -124,84 +132,97 @@ class MainMenuState(State):
         btn_x = (WIDTH - BUTTON_WIDTH) // 2
         self.start_button = Button(btn_x, HEIGHT // 2 - 60, BUTTON_WIDTH, BUTTON_HEIGHT, text="Bắt đầu")
         self.settings_button = Button(btn_x, HEIGHT // 2 + 40, BUTTON_WIDTH, BUTTON_HEIGHT, text="Cài đặt")
-        self.last_click_time = 0
 
     def update(self):
         self.update_cursor()
+        
+        # Cập nhật trạng thái trỏ chuột (hover) cho các button.
         self.start_button.check_hover(self.cursor_pos)
         self.settings_button.check_hover(self.cursor_pos)
+        
         landmarks = self.game.hand_tracker.get_landmarks()
-        is_clicking = is_click_gesture(landmarks) and (time.time() - self.last_click_time > 1)
-        if is_clicking:
-            if self.start_button.is_hovered:
-                # THAY ĐỔI: Chuyển đến màn hình hướng dẫn thay vì chơi ngay
-                self.game.push_state(InstructionsState(self.game))
-                self.last_click_time = time.time()
-            elif self.settings_button.is_hovered:
-                self.game.push_state(SettingsState(self.game))
-                self.last_click_time = time.time()
+        # Chỉ kiểm tra xem người dùng có đang thực hiện cử chỉ click hay không.
+        is_clicking = is_click_gesture(landmarks)
+
+        # Cập nhật trạng thái "giữ để chọn" cho nút Bắt đầu.
+        # Hàm update_hold sẽ trả về True nếu người dùng đã giữ đủ thời gian.
+        if self.start_button.update_hold(is_clicking):
+            self.game.push_state(InstructionsState(self.game))
+            
+        # Cập nhật trạng thái "giữ để chọn" cho nút Cài đặt.
+        if self.settings_button.update_hold(is_clicking):
+            self.game.push_state(SettingsState(self.game))
 
     def draw(self, surface):
         self.game.draw_blurred_webcam_bg(surface)
         draw_text(surface, "GDG Drawing Game", (WIDTH // 2, HEIGHT // 4), FONT_PATH_BOLD, 120, WHITE)
         self.start_button.draw(surface)
         self.settings_button.draw(surface)
-        draw_text(surface, "Dùng ngón trỏ để di chuyển, chụm 2 ngón để click", (WIDTH // 2, HEIGHT - 50), FONT_PATH_REGULAR, 24, WHITE)
+        # Cập nhật văn bản hướng dẫn để phản ánh cơ chế mới.
+        draw_text(surface, "Dùng ngón trỏ để di chuyển, chụm 2 ngón để GIỮ CHỌN", (WIDTH // 2, HEIGHT - 50), FONT_PATH_REGULAR, 24, WHITE)
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-            # THAY ĐỔI: Chuyển đến màn hình hướng dẫn
             self.game.push_state(InstructionsState(self.game))
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             virtual_pos = self.get_virtual_mouse_pos(event.pos)
             if self.start_button.rect.collidepoint(virtual_pos):
-                # THAY ĐỔI: Chuyển đến màn hình hướng dẫn
                 self.game.push_state(InstructionsState(self.game))
             elif self.settings_button.rect.collidepoint(virtual_pos):
                  self.game.push_state(SettingsState(self.game))
 
-# === TRẠNG THÁI MỚI: HƯỚNG DẪN ===
+
 class InstructionsState(State):
     def __init__(self, game):
         super().__init__(game)
         btn_x = (WIDTH - BUTTON_WIDTH) // 2
         self.play_button = Button(btn_x, HEIGHT - 150, BUTTON_WIDTH, BUTTON_HEIGHT, text="Chơi!")
-        self.last_click_time = 0
 
     def update(self):
         self.update_cursor()
         self.play_button.check_hover(self.cursor_pos)
         
         landmarks = self.game.hand_tracker.get_landmarks()
-        is_clicking = is_click_gesture(landmarks) and (time.time() - self.last_click_time > 1)
+        is_clicking = is_click_gesture(landmarks)
 
-        if self.play_button.is_hovered and is_clicking:
-            # Pop state hiện tại (Instructions) và push PlayingState
+        # Áp dụng logic "giữ để chọn" cho nút Chơi.
+        if self.play_button.update_hold(is_clicking):
             self.game.pop_state()
             self.game.push_state(PlayingState(self.game))
-            self.last_click_time = time.time()
 
     def draw(self, surface):
         self.game.draw_blurred_webcam_bg(surface)
         draw_text(surface, "Hướng Dẫn Chơi", (WIDTH // 2, 100), FONT_PATH_BOLD, 90, WHITE)
         
+        panel_padding = 40
+        panel_width = 800
+        panel_height = 400
+        panel_x = (WIDTH - panel_width) / 2
+        panel_y = 200
+        panel_border_radius = 20
+        panel_bg_color = (0, 0, 0, 150)
+
+        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        pygame.draw.rect(panel_surface, panel_bg_color, panel_surface.get_rect(), border_radius=panel_border_radius)
+        surface.blit(panel_surface, (panel_x, panel_y))
+
         instructions = [
             "- Giơ 1 ngón trỏ để VẼ theo vật thể yêu cầu.",
             "- Xòe cả 5 ngón tay để NỘP BÀI.",
-            "- Chụm ngón trỏ và ngón giữa để CLICK nút.",
+            "- Chụm ngón trỏ và ngón giữa để GIỮ CHỌN nút.", # Cập nhật văn bản
             "- Cố gắng vẽ đúng liên tiếp để đạt COMBO cao!"
         ]
         
+        start_y_text = panel_y + panel_padding + 30
         for i, text in enumerate(instructions):
-            draw_text(surface, text, (WIDTH // 2, 250 + i * 70), FONT_PATH_REGULAR, 30, WHITE)
+            draw_text(surface, text, (WIDTH // 2, start_y_text + i * 70), FONT_PATH_REGULAR, 30, WHITE)
 
         self.play_button.draw(surface)
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
 
     def handle_event(self, event):
-        # Cho phép nhấn Enter hoặc P để bắt đầu
         if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_RETURN):
             self.game.pop_state()
             self.game.push_state(PlayingState(self.game))
@@ -220,15 +241,17 @@ class GameOverState(State):
         button_x = (WIDTH - BUTTON_WIDTH) // 2
         button_y = HEIGHT * 2 / 3
         self.restart_button = Button(button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT, text="Chơi lại")
-        self.last_click_time = 0
 
     def update(self):
         self.update_cursor()
         self.restart_button.check_hover(self.cursor_pos)
+        
         landmarks = self.game.hand_tracker.get_landmarks()
-        if self.restart_button.is_hovered and is_click_gesture(landmarks) and (time.time() - self.last_click_time > 1):
+        is_clicking = is_click_gesture(landmarks)
+
+        # Áp dụng logic "giữ để chọn" cho nút Chơi lại.
+        if self.restart_button.update_hold(is_clicking):
             self.game.reset_to_playing_state()
-            self.last_click_time = time.time()
 
     def draw(self, surface):
         self.game.draw_blurred_webcam_bg(surface)
@@ -266,15 +289,13 @@ class PlayingState(State):
         self.is_paused = False 
         self.pause_menu = PauseMenu(game)
 
-        icon_size = 50 # Giảm kích thước một chút để vừa vặn hơn
-        padding = 250 # Khoảng cách từ text "Vẽ" ra hai bên
+        icon_size = 50
+        padding = 250
         
-        # Nút Pause nằm bên trái của text "Vẽ"
         pause_x = WIDTH // 2 - padding - icon_size
         pause_y = (HEADER_HEIGHT - icon_size) // 2
         self.pause_button = Button(pause_x, pause_y, icon_size, icon_size, icon=self.game.assets['icons']['pause'])
         
-        # Nút Home nằm bên phải của text "Vẽ"
         home_x = WIDTH // 2 + padding
         home_y = (HEADER_HEIGHT - icon_size) // 2
         self.home_button_hud = Button(home_x, home_y, icon_size, icon_size, icon=self.game.assets['icons']['home'])
@@ -285,6 +306,8 @@ class PlayingState(State):
         self.target_name = CLASSES_VN[self.target_id]
 
     def update(self):
+        # Tạm thời giữ logic click tức thì cho các nút trong game (Pause, Home)
+        # để tránh ảnh hưởng đến nhịp độ trận đấu. Có thể nâng cấp sau nếu muốn.
         if self.is_paused:
             self.update_cursor()
             landmarks = self.game.hand_tracker.get_landmarks()
@@ -385,7 +408,7 @@ class PlayingState(State):
         draw_game_hud(
             surface, self.score, self.combo, self.time_left, self.target_name,
             self.score_effect_timer, self.combo_effect_timer,
-            self.pause_button, self.home_button_hud # Truyền 2 button vào
+            self.pause_button, self.home_button_hud
         )
         
         if self.result_icon:
