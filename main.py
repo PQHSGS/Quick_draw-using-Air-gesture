@@ -30,7 +30,7 @@ def load_animated_icons(path, class_names_vn):
         'Bông hoa': 'flower', 'Đèn lồng': 'lantern', 'Con lân': 'lion',
         'Ông trăng': 'moon', 'Quả lê': 'pear', 'Quả dứa': 'pineapple',
         'Thỏ ngọc': 'rabbit', 'Đèn ông sao': 'star', 'Quả dâu tây': 'strawberry',
-        'Cây thần': 'tree'
+        'Cây thần': 'tree', 'Dưa hấu': 'watermelon'
         # Thêm các ánh xạ khác nếu cần
     }
 

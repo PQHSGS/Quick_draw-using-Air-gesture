@@ -30,7 +30,7 @@ BOX_RANGE = 225
 CANVAS_WIDTH = BOX_RANGE * 2
 CANVAS_HEIGHT = BOX_RANGE * 2
 CANVAS_X = (WIDTH - CANVAS_WIDTH) // 2
-CANVAS_Y = (HEIGHT - CANVAS_HEIGHT) // 2
+CANVAS_Y = (HEIGHT - CANVAS_HEIGHT) // 2 - 50
 
 # Cấu hình Model & Assets
 ASSETS_PATH = Path("assets") # Thư mục tài nguyên chung
