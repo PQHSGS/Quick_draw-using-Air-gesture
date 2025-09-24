@@ -15,7 +15,7 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         self.virtual_screen = pygame.Surface((WIDTH, HEIGHT))
-        pygame.display.set_caption("Draw Game - Pygame Version")
+        pygame.display.set_caption("GDG Draw Game - Pygame Version")
         self.clock = pygame.time.Clock()
         self.running = True
 

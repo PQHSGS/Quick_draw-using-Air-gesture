@@ -33,7 +33,7 @@ CANVAS_Y = (HEIGHT - CANVAS_HEIGHT) // 2
 
 # Cấu hình Model & Assets
 ASSETS_PATH = Path("assets") # Thư mục tài nguyên chung
-MODEL_PATH = ASSETS_PATH / "vgg.pt"
+MODEL_PATH = ASSETS_PATH / "vgg_64.pt"
 FONT_PATH = ASSETS_PATH / "arial.ttf"
 FONT_PATH_REGULAR = ASSETS_PATH / "arial.ttf" # Giữ lại cho text nhỏ
 FONT_PATH_BOLD = ASSETS_PATH / "FC-Lilita-One-Regular.otf" # Font chính cho tiêu đề/UI

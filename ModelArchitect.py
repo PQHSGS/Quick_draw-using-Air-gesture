@@ -1,8 +1,8 @@
 
 import torch
 import torch.nn as nn
-
-class VGG_Small(nn.Module):
+# đã cập nhật thành 64
+class VGG_Small(nn.Module): 
     def __init__(self, num_classes):
         super().__init__()
         self.features = nn.Sequential(
@@ -27,7 +27,7 @@ class VGG_Small(nn.Module):
         # for 32x32 -> after three 2x2 pools -> 4x4 spatial
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256*4*4, 512),
+            nn.Linear(256*8*8, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(512, num_classes)

@@ -143,7 +143,7 @@ class MainMenuState(State):
 
     def draw(self, surface):
         self.game.draw_blurred_webcam_bg(surface)
-        draw_text(surface, "Drawing Game", (WIDTH // 2, HEIGHT // 4), FONT_PATH_BOLD, 120, WHITE)
+        draw_text(surface, "GDG Drawing Game", (WIDTH // 2, HEIGHT // 4), FONT_PATH_BOLD, 120, WHITE)
         self.start_button.draw(surface)
         self.settings_button.draw(surface)
         draw_text(surface, "Dùng ngón trỏ để di chuyển, chụm 2 ngón để click", (WIDTH // 2, HEIGHT - 50), FONT_PATH_REGULAR, 24, WHITE)
@@ -195,7 +195,7 @@ class InstructionsState(State):
         ]
         
         for i, text in enumerate(instructions):
-            draw_text(surface, text, (WIDTH // 2, 250 + i * 70), FONT_PATH_REGULAR, 40, WHITE)
+            draw_text(surface, text, (WIDTH // 2, 250 + i * 70), FONT_PATH_REGULAR, 30, WHITE)
 
         self.play_button.draw(surface)
         pygame.draw.circle(surface, YELLOW, self.cursor_pos, 10)
